@@ -7,17 +7,22 @@ export function connectNotificationSocket(userId, onMessage) {
   if (!userId) return null;
 
   stompClient = new Client({
-    webSocketFactory: () =>  new SockJS(`${import.meta.env.VITE_API_URL}/ws-notifications`),
+    webSocketFactory: () =>
+      new SockJS("http://localhost:8080/ws-notifications"),
+
     reconnectDelay: 5000,
+
     onConnect: () => {
       stompClient.subscribe(`/topic/notifications/${userId}`, (message) => {
         const body = JSON.parse(message.body);
         onMessage(body);
       });
     },
+
     onStompError: (frame) => {
       console.error("STOMP error:", frame);
     },
+
     onWebSocketError: (event) => {
       console.error("WebSocket error:", event);
     },
