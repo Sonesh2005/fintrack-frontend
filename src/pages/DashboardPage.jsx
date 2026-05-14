@@ -12,8 +12,11 @@ import formatCurrency from "../utils/formatCurrency";
 import StatCard from "../components/ui/StatCard";
 import GlassCard from "../components/ui/GlassCard";
 import MonthlyTrendChart from "../components/charts/MonthlyTrendChart";
+import toast from "react-hot-toast";
 
+import FinTrackAIChat from "../components/ai/FinTrackAIChat";
 export default function DashboardPage() {
+ 
   const { summaryQuery, monthlyQuery } = useDashboardData();
 
   const { data: smartInsights = [], isLoading: insightsLoading } = useQuery({
@@ -22,9 +25,27 @@ export default function DashboardPage() {
   });
 
   const summary = summaryQuery.data || {};
+  const categoryData =
+  summary?.categoryBreakdown || [];
+const topCategoryData =
+  categoryData.length > 0
+    ? categoryData.reduce((max, item) =>
+        item.value > max.value
+          ? item
+          : max
+      )
+    : null;
+
+const topCategory =
+  topCategoryData?.name || "No Data";
+
+const topCategoryAmount =
+  topCategoryData?.value || 0;
   const isSummaryLoading = summaryQuery.isLoading;
   const isSummaryError = summaryQuery.isError;
-
+if (isSummaryError) {
+  toast.error("Failed to load dashboard data");
+}
   const totalIncome = summary.totalIncome ?? 0;
   const totalExpense = summary.totalExpense ?? 0;
   const savings = summary.savings ?? 0;
@@ -93,6 +114,55 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <motion.div
+  initial={{ opacity: 0, y: -20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.6 }}
+  className="
+    relative overflow-hidden rounded-3xl
+    border border-cyan-400/10
+    bg-white/5
+    backdrop-blur-2xl
+    p-8 shadow-2xl
+  "
+>
+  {/* Glow Effect */}
+  <div className="absolute -top-20 -right-20 h-60 w-60 rounded-full bg-cyan-500/20 blur-3xl" />
+  <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-violet-500/20 blur-3xl" />
+
+  <div className="relative z-10">
+    <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">
+      FinTrack AI Assistant
+    </p>
+<FinTrackAIChat
+  totalIncome={totalIncome}
+  totalExpense={totalExpense}
+  savings={savings}
+/>
+    <h1 className="mt-3 text-4xl font-bold tracking-tight">
+      Welcome Back 👋
+    </h1>
+
+    <p className="mt-4 max-w-2xl text-white/70">
+      Your savings are improving steadily this month.
+      AI predicts stable financial growth if current spending habits continue.
+    </p>
+
+    <div className="mt-6 flex flex-wrap gap-3">
+      <div className="rounded-2xl bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300 border border-emerald-400/10">
+        Savings Trend: Positive
+      </div>
+
+      <div className="rounded-2xl bg-cyan-500/10 px-4 py-2 text-sm text-cyan-300 border border-cyan-400/10">
+        AI Risk Level: Low
+      </div>
+
+      <div className="rounded-2xl bg-violet-500/10 px-4 py-2 text-sm text-violet-300 border border-violet-400/10">
+        Forecast: Stable
+      </div>
+    </div>
+  </div>
+</motion.div>
       {isSummaryError && (
         <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           Failed to load dashboard summary.
@@ -216,9 +286,15 @@ export default function DashboardPage() {
           />
         </div>
 
-        <CategoryDonutChart />
+        <CategoryDonutChart
+  data={categoryData}
+  
+  
+/>
+
         <ExpenseHeatmap />
-        <HealthScoreRing />
+
+       <HealthScoreRing />
         <BudgetProgress />
 
         <GlassCard className="p-6 xl:col-span-3">
@@ -232,11 +308,18 @@ export default function DashboardPage() {
           <div className="mt-4 space-y-3">
             {insightsLoading ? (
               <div className="rounded-2xl border border-white/8 bg-white/6 p-4 text-sm text-white/75">
-                Loading insights...
+               <div className="rounded-2xl border border-white/8 bg-white/6 p-4 text-sm text-white/75 animate-pulse">
+  Loading smart insights...
+</div>
               </div>
             ) : smartInsights.length === 0 ? (
               <div className="rounded-2xl border border-white/8 bg-white/6 p-4 text-sm text-white/75">
-                No insights available yet.
+               <div className="rounded-2xl border border-white/8 bg-white/6 p-4 text-center">
+  <p className="text-white/70 text-sm">No insights yet</p>
+  <p className="text-white/40 text-xs mt-1">
+    Add more transactions to generate smart insights
+  </p>
+</div>
               </div>
             ) : (
               smartInsights.map((text, index) => (

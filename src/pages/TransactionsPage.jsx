@@ -8,7 +8,9 @@ import {
   Wallet,
   TrendingDown,
   TrendingUp,
+  Plus,
 } from "lucide-react";
+
 import { useQuery } from "@tanstack/react-query";
 
 import GlassCard from "../components/ui/GlassCard";
@@ -78,6 +80,7 @@ export default function TransactionsPage() {
     const unique = new Set(
       transactions.map((item) => item.category).filter(Boolean)
     );
+
     return ["all", ...Array.from(unique)];
   }, [transactions]);
 
@@ -91,7 +94,9 @@ export default function TransactionsPage() {
         typeFilter === "all" ? true : item.type === typeFilter;
 
       const matchesCategory =
-        categoryFilter === "all" ? true : item.category === categoryFilter;
+        categoryFilter === "all"
+          ? true
+          : item.category === categoryFilter;
 
       return matchesSearch && matchesType && matchesCategory;
     });
@@ -118,18 +123,58 @@ export default function TransactionsPage() {
       .sort((a, b) => b.amount - a.amount)[0]?.amount || 0;
 
   return (
-    <div className="space-y-6">
-      {isError && (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          Failed to load transactions.
-        </div>
-      )}
+    <div className="relative space-y-8 overflow-hidden">
 
+      {/* BACKGROUND GLOW */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute left-0 top-0 h-[420px] w-[420px] rounded-full bg-cyan-500/10 blur-[140px]" />
+
+        <div className="absolute bottom-0 right-0 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[140px]" />
+      </div>
+
+      {/* HEADER */}
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+        transition={{ duration: 0.6 }}
+        className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between"
+      >
+        <div>
+          <h1 className="text-4xl font-black text-white">
+            Transactions
+          </h1>
+
+          <p className="mt-2 text-white/50">
+            Track all your income and expenses in one place
+          </p>
+        </div>
+
+        <button
+          className="
+          flex items-center gap-2
+          rounded-2xl
+          bg-gradient-to-r
+          from-cyan-400
+          to-purple-500
+          px-6 py-3
+          font-semibold
+          text-white
+          shadow-[0_0_30px_rgba(34,211,238,0.25)]
+          transition-all duration-300
+          hover:scale-105
+        "
+        >
+          <Plus className="h-5 w-5" />
+          Add Transaction
+        </button>
+      </motion.div>
+
+      {/* SUMMARY CARDS */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="grid gap-5 md:grid-cols-2 xl:grid-cols-4"
       >
         <SummaryCard
           title="Total Transactions"
@@ -137,6 +182,7 @@ export default function TransactionsPage() {
           subtitle="Filtered results"
           icon={<Wallet className="h-5 w-5" />}
         />
+
         <SummaryCard
           title="Income"
           value={formatCurrency(totalIncome)}
@@ -144,6 +190,7 @@ export default function TransactionsPage() {
           icon={<TrendingUp className="h-5 w-5" />}
           iconClass="bg-emerald-500/10 text-emerald-300"
         />
+
         <SummaryCard
           title="Expenses"
           value={formatCurrency(totalExpense)}
@@ -151,6 +198,7 @@ export default function TransactionsPage() {
           icon={<TrendingDown className="h-5 w-5" />}
           iconClass="bg-rose-500/10 text-rose-300"
         />
+
         <SummaryCard
           title="Highest Expense"
           value={formatCurrency(highestExpense)}
@@ -160,11 +208,20 @@ export default function TransactionsPage() {
         />
       </motion.div>
 
-      <GlassCard className="p-5">
+      {/* FILTER SECTION */}
+      <GlassCard
+        className="
+          border border-cyan-500/10
+          bg-white/[0.03]
+          p-6
+        "
+      >
         <div className="grid gap-4 lg:grid-cols-4">
+
           <div className="lg:col-span-2">
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
               <Search className="h-4 w-4 text-white/50" />
+
               <input
                 type="text"
                 placeholder="Search by title or category"
@@ -183,9 +240,11 @@ export default function TransactionsPage() {
             <option value="all" className="bg-slate-900">
               All Types
             </option>
+
             <option value="income" className="bg-slate-900">
               Income
             </option>
+
             <option value="expense" className="bg-slate-900">
               Expense
             </option>
@@ -202,18 +261,23 @@ export default function TransactionsPage() {
                 value={category}
                 className="bg-slate-900"
               >
-                {category === "all" ? "All Categories" : category}
+                {category === "all"
+                  ? "All Categories"
+                  : category}
               </option>
             ))}
           </select>
         </div>
       </GlassCard>
 
+      {/* TRANSACTION LIST */}
       <GlassCard className="overflow-hidden p-0">
-        <div className="border-b border-white/8 px-5 py-4">
-          <h3 className="text-lg font-semibold text-white">
+
+        <div className="border-b border-white/8 px-6 py-5">
+          <h3 className="text-xl font-bold text-white">
             Transaction History
           </h3>
+
           <p className="mt-1 text-sm text-white/50">
             Complete combined history of income and expenses
           </p>
@@ -224,27 +288,41 @@ export default function TransactionsPage() {
             {[1, 2, 3, 4, 5].map((item) => (
               <div
                 key={item}
-                className="h-16 animate-pulse rounded-2xl bg-white/5"
+                className="h-20 animate-pulse rounded-2xl bg-white/5"
               />
             ))}
           </div>
         ) : filteredTransactions.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-white/50">
-            No transactions found for the selected filters.
+            No transactions found.
           </div>
         ) : (
           <div className="divide-y divide-white/6">
+
             {filteredTransactions.map((transaction, index) => (
+
               <motion.div
                 key={transaction.id}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.02 }}
-                className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between"
+
+                className="
+                flex flex-col gap-3
+                px-6 py-5
+                transition-all duration-300
+                hover:bg-white/[0.03]
+                hover:shadow-[0_0_20px_rgba(0,255,255,0.05)]
+                md:flex-row
+                md:items-center
+                md:justify-between
+              "
               >
+
                 <div className="flex items-center gap-4">
+
                   <div
-                    className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
+                    className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
                       transaction.type === "income"
                         ? "bg-emerald-500/10 text-emerald-300"
                         : "bg-rose-500/10 text-rose-300"
@@ -258,12 +336,17 @@ export default function TransactionsPage() {
                   </div>
 
                   <div>
-                    <p className="font-medium text-white">{transaction.title}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-white/50">
-                      <span className="rounded-full bg-white/6 px-2 py-1">
+                    <p className="font-semibold text-white">
+                      {transaction.title}
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/50">
+
+                      <span className="rounded-full bg-white/6 px-3 py-1">
                         {transaction.category}
                       </span>
-                      <span className="rounded-full bg-white/6 px-2 py-1 capitalize">
+
+                      <span className="rounded-full bg-white/6 px-3 py-1 capitalize">
                         {transaction.type}
                       </span>
                     </div>
@@ -271,8 +354,9 @@ export default function TransactionsPage() {
                 </div>
 
                 <div className="text-left md:text-right">
+
                   <p
-                    className={`text-lg font-semibold ${
+                    className={`text-xl font-bold ${
                       transaction.type === "income"
                         ? "text-emerald-300"
                         : "text-rose-300"
@@ -281,6 +365,7 @@ export default function TransactionsPage() {
                     {transaction.type === "income" ? "+" : "-"}
                     {formatCurrency(transaction.amount)}
                   </p>
+
                   <p className="mt-1 text-xs text-white/45">
                     {formatDate(transaction.date)}
                   </p>
@@ -302,14 +387,34 @@ function SummaryCard({
   iconClass = "bg-cyan-500/10 text-cyan-300",
 }) {
   return (
-    <GlassCard className="p-5">
+    <GlassCard
+      className="
+        relative overflow-hidden
+        border border-cyan-500/10
+        bg-white/[0.03]
+        p-6
+        shadow-[0_0_40px_rgba(0,255,255,0.06)]
+      "
+    >
       <div className="flex items-start justify-between">
+
         <div>
-          <p className="text-sm text-white/50">{title}</p>
-          <h3 className="mt-3 text-3xl font-bold text-white">{value}</h3>
-          <p className="mt-2 text-sm text-white/55">{subtitle}</p>
+          <p className="text-sm text-white/50">
+            {title}
+          </p>
+
+          <h3 className="mt-4 text-4xl font-black text-white">
+            {value}
+          </h3>
+
+          <p className="mt-3 text-sm text-white/55">
+            {subtitle}
+          </p>
         </div>
-        <div className={`rounded-2xl p-3 ${iconClass}`}>{icon}</div>
+
+        <div className={`rounded-2xl p-3 ${iconClass}`}>
+          {icon}
+        </div>
       </div>
     </GlassCard>
   );
@@ -319,6 +424,7 @@ function formatDate(dateValue) {
   if (!dateValue) return "No date";
 
   const date = new Date(dateValue);
+
   if (Number.isNaN(date.getTime())) return dateValue;
 
   return date.toLocaleDateString("en-IN", {

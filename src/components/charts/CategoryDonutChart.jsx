@@ -7,16 +7,12 @@ import {
 } from "recharts";
 import GlassCard from "../ui/GlassCard";
 
-const data = [
-  { name: "Food", value: 7200 },
-  { name: "Travel", value: 3100 },
-  { name: "Shopping", value: 2400 },
-  { name: "Bills", value: 4000 },
-];
 
 const COLORS = ["#22d3ee", "#a78bfa", "#f59e0b", "#34d399"];
 
-export default function CategoryDonutChart() {
+export default function CategoryDonutChart({
+  data = [],
+}) {
   return (
     <GlassCard className="p-6">
       <p className="text-sm text-white/50">Category Spending</p>

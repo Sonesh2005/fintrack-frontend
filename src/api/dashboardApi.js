@@ -16,7 +16,7 @@ export const getCategoryExpense = async () => {
 };
 
 export const getHealthScore = async (year, month) => {
-  const response = await api.get(`/api/health-score?year=${year}&month=${month}`);
+  const response = await api.get(`/api/health/monthly?year=${year}&month=${month}`);
   return response.data;
 };
 

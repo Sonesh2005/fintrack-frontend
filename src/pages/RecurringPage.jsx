@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
+
 import {
   Repeat,
   Plus,
@@ -10,36 +12,55 @@ import {
   TrendingUp,
   BellRing,
   Wallet,
+  Sparkles,
+  Brain,
+  Clock3,
 } from "lucide-react";
+
 import GlassCard from "../components/ui/GlassCard";
 import formatCurrency from "../utils/formatCurrency";
 import useRecurringData from "../features/recurring/useRecurringData";
 
 function formatDate(value) {
   if (!value) return "-";
-  return new Date(value).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+
+  return new Date(value).toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
 }
 
 function getTypeBadge(type) {
   if (type === "INCOME") {
-    return "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
+    return "bg-cyan-500/10 text-cyan-300 border-cyan-500/20";
   }
-  return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+
+  return "bg-amber-500/10 text-amber-300 border-amber-500/20";
 }
 
 function getFrequencyBadge(frequency) {
   switch (frequency) {
     case "WEEKLY":
-      return "bg-violet-500/10 text-violet-400 border-violet-500/20";
+      return "bg-violet-500/10 text-violet-300 border-violet-500/20";
+
     case "YEARLY":
-      return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+      return "bg-blue-500/10 text-blue-300 border-blue-500/20";
+
     default:
-      return "bg-white/5 text-white/70 border-white/10";
+      return "bg-emerald-500/10 text-emerald-300 border-emerald-500/20";
   }
+}
+
+function getCardGradient(type) {
+  if (type === "INCOME") {
+    return "from-cyan-500/10 to-blue-500/10";
+  }
+
+  return "from-amber-500/10 to-orange-500/10";
 }
 
 function resetRecurringForm() {
@@ -61,11 +82,57 @@ export default function RecurringPage() {
   } = useRecurringData();
 
   const items = recurringQuery.data || [];
-  const isLoading = recurringQuery.isLoading;
-  const isError = recurringQuery.isError;
 
-  const [form, setForm] = useState(resetRecurringForm());
-  const [editingId, setEditingId] = useState(null);
+  const isLoading =
+    recurringQuery.isLoading;
+
+  const isError =
+    recurringQuery.isError;
+
+  const [form, setForm] = useState(
+    resetRecurringForm()
+  );
+
+  const [editingId, setEditingId] =
+    useState(null);
+
+  const incomeCount = items.filter(
+    (item) =>
+      item.category === "INCOME"
+  ).length;
+
+  const expenseCount = items.filter(
+    (item) =>
+      item.category !== "INCOME"
+  ).length;
+
+  const totalRecurringAmount =
+    useMemo(
+      () =>
+        items.reduce(
+          (sum, item) =>
+            sum +
+            Number(item.amount || 0),
+          0
+        ),
+      [items]
+    );
+
+  const nextDueRule = useMemo(() => {
+    const validItems = items
+      .filter(
+        (item) => item.startDate
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.startDate) -
+          new Date(b.startDate)
+      );
+
+    return validItems.length > 0
+      ? validItems[0]
+      : null;
+  }, [items]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -78,193 +145,259 @@ export default function RecurringPage() {
       startDate: form.nextDueDate,
     };
 
-    if (!payload.title || payload.amount <= 0 || !payload.startDate) {
-      alert("Please fill all fields correctly");
+    if (
+      !payload.title ||
+      payload.amount <= 0 ||
+      !payload.startDate
+    ) {
+      toast.error(
+        "Fill all fields correctly"
+      );
+
       return;
     }
 
     if (editingId) {
       updateRecurringMutation.mutate(
-        { id: editingId, payload },
+        {
+          id: editingId,
+          payload,
+        },
         {
           onSuccess: () => {
+            toast.success(
+              "Recurring rule updated"
+            );
+
             setEditingId(null);
-            setForm(resetRecurringForm());
-          },
-          onError: (error) => {
-            console.error("Update recurring failed:", error?.response?.data || error);
-            alert("Update failed. Check console/network.");
+
+            setForm(
+              resetRecurringForm()
+            );
           },
         }
       );
     } else {
-      createRecurringMutation.mutate(payload, {
-        onSuccess: () => {
-          setForm(resetRecurringForm());
-        },
-        onError: (error) => {
-          console.error("Create recurring failed:", error?.response?.data || error);
-          alert("Create failed. Check console/network.");
-        },
-      });
+      createRecurringMutation.mutate(
+        payload,
+        {
+          onSuccess: () => {
+            toast.success(
+              "Recurring rule created"
+            );
+
+            setForm(
+              resetRecurringForm()
+            );
+          },
+        }
+      );
     }
   };
 
   const handleEdit = (item) => {
     setEditingId(item.id);
+
     setForm({
       title: item.title || "",
       amount: item.amount || "",
-      type: item.category || "EXPENSE",
-      frequency: item.frequency || "MONTHLY",
-      nextDueDate: item.startDate || "",
+      type:
+        item.category ||
+        "EXPENSE",
+      frequency:
+        item.frequency ||
+        "MONTHLY",
+      nextDueDate:
+        item.startDate || "",
     });
   };
 
   const handleDelete = (item) => {
-    if (!window.confirm(`Delete recurring rule "${item.title || "this rule"}"?`)) {
+    if (
+      !window.confirm(
+        `Delete "${item.title}"?`
+      )
+    ) {
       return;
     }
 
-    deleteRecurringMutation.mutate(item.id, {
-      onError: (error) => {
-        console.error("Delete recurring failed:", error?.response?.data || error);
-        alert("Delete failed. Check console/network.");
-      },
-    });
+    deleteRecurringMutation.mutate(
+      item.id,
+      {
+        onSuccess: () => {
+          toast.success(
+            "Recurring rule deleted"
+          );
+        },
+      }
+    );
   };
 
-  const incomeCount = items.filter((item) => item.category === "INCOME").length;
-  const expenseCount = items.filter((item) => item.category !== "INCOME").length;
-
-  const totalRecurringAmount = useMemo(
-    () => items.reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    [items]
-  );
-
-  const nextDueRule = useMemo(() => {
-    const validItems = items
-      .filter((item) => item.startDate)
-      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-
-    return validItems.length > 0 ? validItems[0] : null;
-  }, [items]);
-
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-8 overflow-hidden">
+
+      {/* BACKGROUND GLOW */}
+
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+
+        <div className="absolute left-0 top-0 h-[420px] w-[420px] rounded-full bg-cyan-500/10 blur-[140px]" />
+
+        <div className="absolute bottom-0 right-0 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[140px]" />
+
+      </div>
+
+      {/* ERROR */}
+
       {isError && (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-300">
           Failed to load recurring rules.
         </div>
+
       )}
 
-      <div>
-        <p className="text-sm text-white/50">Automation</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Recurring</h1>
+      {/* HEADER */}
+
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+
+        <div>
+
+          <p className="text-sm text-cyan-400">
+            Smart Automation
+          </p>
+
+          <h1 className="text-4xl font-black tracking-tight text-white">
+            Recurring Center
+          </h1>
+
+        </div>
+
+        <div className="hidden md:flex items-center gap-3 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-5 py-3">
+
+          <Sparkles
+            className="text-cyan-400"
+            size={18}
+          />
+
+          <span className="text-sm text-cyan-200">
+            AI optimized recurring automation
+          </span>
+
+        </div>
+
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <motion.div whileHover={{ y: -4 }}>
-          <GlassCard className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-cyan-500/10 p-3 text-cyan-400">
-                <Repeat size={18} />
-              </div>
-              <div>
-                <p className="text-sm text-white/50">Recurring Items</p>
-                <h3 className="mt-1 text-3xl font-bold">{items.length}</h3>
-                <p className="mt-2 text-sm text-cyan-400">Automation rules</p>
-              </div>
-            </div>
-          </GlassCard>
-        </motion.div>
+      {/* STATS */}
 
-        <motion.div whileHover={{ y: -4 }}>
-          <GlassCard className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-emerald-500/10 p-3 text-emerald-400">
-                <Wallet size={18} />
-              </div>
-              <div>
-                <p className="text-sm text-white/50">Configured</p>
-                <h3 className="mt-1 text-3xl font-bold">{items.length}</h3>
-                <p className="mt-2 text-sm text-emerald-400">Saved in backend</p>
-              </div>
-            </div>
-          </GlassCard>
-        </motion.div>
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
 
-        <motion.div whileHover={{ y: -4 }}>
-          <GlassCard className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-blue-500/10 p-3 text-blue-400">
-                <TrendingUp size={18} />
-              </div>
-              <div>
-                <p className="text-sm text-white/50">Income Rules</p>
-                <h3 className="mt-1 text-3xl font-bold">{incomeCount}</h3>
-                <p className="mt-2 text-sm text-cyan-400">Recurring income</p>
-              </div>
-            </div>
-          </GlassCard>
-        </motion.div>
+        <StatCard
+          title="Recurring Rules"
+          value={items.length}
+          subtitle="Automation rules"
+          icon={<Repeat size={20} />}
+          color="cyan"
+        />
 
-        <motion.div whileHover={{ y: -4 }}>
-          <GlassCard className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-amber-500/10 p-3 text-amber-400">
-                <BadgeIndianRupee size={18} />
-              </div>
-              <div>
-                <p className="text-sm text-white/50">Expense Rules</p>
-                <h3 className="mt-1 text-3xl font-bold">{expenseCount}</h3>
-                <p className="mt-2 text-sm text-amber-400">Recurring expenses</p>
-              </div>
-            </div>
-          </GlassCard>
-        </motion.div>
+        <StatCard
+          title="Income Rules"
+          value={incomeCount}
+          subtitle="Recurring income"
+          icon={<TrendingUp size={20} />}
+          color="blue"
+        />
 
-        <motion.div whileHover={{ y: -4 }}>
-          <GlassCard className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-violet-500/10 p-3 text-violet-400">
-                <BellRing size={18} />
-              </div>
-              <div>
-                <p className="text-sm text-white/50">Total Amount</p>
-                <h3 className="mt-1 text-3xl font-bold">
-                  {formatCurrency(totalRecurringAmount)}
-                </h3>
-                <p className="mt-2 text-sm text-violet-400">Rule total value</p>
-              </div>
-            </div>
-          </GlassCard>
-        </motion.div>
+        <StatCard
+          title="Expense Rules"
+          value={expenseCount}
+          subtitle="Recurring expenses"
+          icon={
+            <BadgeIndianRupee
+              size={20}
+            />
+          }
+          color="amber"
+        />
+
+        <StatCard
+          title="Total Value"
+          value={formatCurrency(
+            totalRecurringAmount
+          )}
+          subtitle="Rule total"
+          icon={<Wallet size={20} />}
+          color="emerald"
+        />
+
+        <StatCard
+          title="Next Due"
+          value={
+            nextDueRule
+              ? formatDate(
+                  nextDueRule.startDate
+                )
+              : "—"
+          }
+          subtitle={
+            nextDueRule
+              ? nextDueRule.title
+              : "No rule"
+          }
+          icon={<Clock3 size={20} />}
+          color="purple"
+        />
+
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <GlassCard className="p-6 xl:col-span-1">
+      {/* MAIN GRID */}
+
+      <div className="grid gap-6 xl:grid-cols-3">
+
+        {/* FORM */}
+
+        <GlassCard className="border border-cyan-500/10 bg-white/[0.03] p-7 shadow-[0_0_40px_rgba(0,255,255,0.05)]">
+
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white/8 p-3">
+
+            <div className="rounded-2xl bg-cyan-500/10 p-3 text-cyan-300">
               <Plus size={18} />
             </div>
+
             <div>
-              <p className="text-sm text-white/50">Recurring Form</p>
-              <h3 className="text-lg font-semibold">
-                {editingId ? "Update Rule" : "Create Rule"}
+
+              <p className="text-sm text-white/50">
+                Automation Form
+              </p>
+
+              <h3 className="text-lg font-semibold text-white">
+
+                {editingId
+                  ? "Update Rule"
+                  : "Create Rule"}
+
               </h3>
+
             </div>
+
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            className="mt-7 space-y-4"
+          >
+
             <input
               type="text"
               placeholder="Title"
               value={form.title}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, title: e.target.value }))
+                setForm((prev) => ({
+                  ...prev,
+                  title:
+                    e.target.value,
+                }))
               }
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none placeholder:text-white/30"
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 outline-none placeholder:text-white/30"
               required
             />
 
@@ -273,228 +406,466 @@ export default function RecurringPage() {
               placeholder="Amount"
               value={form.amount}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, amount: e.target.value }))
+                setForm((prev) => ({
+                  ...prev,
+                  amount:
+                    e.target.value,
+                }))
               }
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none placeholder:text-white/30"
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 outline-none placeholder:text-white/30"
               required
             />
 
             <select
               value={form.type}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, type: e.target.value }))
+                setForm((prev) => ({
+                  ...prev,
+                  type:
+                    e.target.value,
+                }))
               }
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none"
+              className="w-full rounded-2xl border border-white/10 bg-[#111827] text-white px-5 py-4 outline-none"
             >
-              <option value="EXPENSE" className="bg-slate-900">
+
+              <option
+                value="EXPENSE"
+                className="bg-[#111827] text-white"
+              >
                 EXPENSE
               </option>
-              <option value="INCOME" className="bg-slate-900">
+
+              <option
+                value="INCOME"
+                className="bg-[#111827] text-white"
+              >
                 INCOME
               </option>
+
             </select>
 
             <select
               value={form.frequency}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, frequency: e.target.value }))
+                setForm((prev) => ({
+                  ...prev,
+                  frequency:
+                    e.target.value,
+                }))
               }
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none"
+              className="w-full rounded-2xl border border-white/10 bg-[#111827] text-white px-5 py-4 outline-none"
             >
-              <option value="MONTHLY" className="bg-slate-900">
+
+              <option
+                value="MONTHLY"
+                className="bg-[#111827] text-white"
+              >
                 MONTHLY
               </option>
-              <option value="WEEKLY" className="bg-slate-900">
+
+              <option
+                value="WEEKLY"
+                className="bg-[#111827] text-white"
+              >
                 WEEKLY
               </option>
-              <option value="YEARLY" className="bg-slate-900">
+
+              <option
+                value="YEARLY"
+                className="bg-[#111827] text-white"
+              >
                 YEARLY
               </option>
+
             </select>
 
-            <div className="space-y-2">
-              <label className="text-sm text-white/50">Start Date</label>
-              <input
-                type="date"
-                value={form.nextDueDate}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, nextDueDate: e.target.value }))
-                }
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none"
-                required
-              />
-            </div>
+            <input
+              type="date"
+              value={form.nextDueDate}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  nextDueDate:
+                    e.target.value,
+                }))
+              }
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 outline-none"
+              required
+            />
 
             <div className="flex gap-3">
+
               <button
                 type="submit"
-                className="flex-1 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-3 font-medium text-white transition hover:opacity-90"
+                className="flex-1 rounded-2xl bg-gradient-to-r from-cyan-500 to-purple-500 px-5 py-4 font-semibold text-white transition hover:scale-[1.01]"
               >
+
                 {editingId
-                  ? updateRecurringMutation.isPending
-                    ? "Updating..."
-                    : "Update Rule"
-                  : createRecurringMutation.isPending
-                  ? "Creating..."
+                  ? "Update Rule"
                   : "Create Rule"}
+
               </button>
 
               {editingId && (
+
                 <button
                   type="button"
                   onClick={() => {
                     setEditingId(null);
-                    setForm(resetRecurringForm());
+
+                    setForm(
+                      resetRecurringForm()
+                    );
                   }}
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                  className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4"
                 >
                   Cancel
                 </button>
+
               )}
+
             </div>
+
           </form>
 
-          <div className="mt-6 rounded-2xl bg-white/5 p-4">
-            <p className="text-sm text-white/50">Next Due Rule</p>
-            <p className="mt-2 text-lg font-semibold">
-              {nextDueRule ? nextDueRule.title : "No upcoming rule"}
-            </p>
-            <p className="mt-1 text-sm text-white/60">
-              {nextDueRule ? formatDate(nextDueRule.startDate) : "—"}
-            </p>
-          </div>
         </GlassCard>
 
-        <GlassCard className="p-6 xl:col-span-2">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white/8 p-3">
-              <Repeat size={18} />
-            </div>
-            <div>
-              <p className="text-sm text-white/50">Automation Table</p>
-              <h3 className="text-lg font-semibold">Recurring Rules</h3>
-            </div>
-          </div>
+        {/* RULES */}
 
-          <div className="mt-6 space-y-3">
-            {isLoading ? (
-              [...Array(5)].map((_, index) => (
+        <div className="space-y-5 xl:col-span-2">
+
+          {isLoading ? (
+
+            [...Array(5)].map(
+              (_, index) => (
+
                 <div
                   key={index}
-                  className="h-20 animate-pulse rounded-2xl bg-white/5"
+                  className="h-40 animate-pulse rounded-3xl bg-white/5"
                 />
-              ))
-            ) : items.length === 0 ? (
-              <div className="rounded-2xl bg-white/5 p-6 text-center text-sm text-white/50">
-                No recurring rules created yet.
+
+              )
+            )
+
+          ) : items.length === 0 ? (
+
+            <GlassCard className="flex flex-col items-center justify-center p-16 text-center">
+
+              <div className="rounded-full bg-cyan-500/10 p-8">
+
+                <Repeat
+                  size={50}
+                  className="text-cyan-400"
+                />
+
               </div>
-            ) : (
-              items.map((item) => (
-                <div
-                  key={item.id}
-                  className="grid items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 md:grid-cols-[1.4fr_0.8fr_0.9fr_1fr_0.7fr_auto]"
+
+              <h2 className="mt-6 text-3xl font-bold">
+                No Recurring Rules
+              </h2>
+
+              <p className="mt-3 max-w-md text-white/50">
+                Create smart recurring automations for salary, bills, subscriptions, EMI, and more.
+              </p>
+
+            </GlassCard>
+
+          ) : (
+
+            items.map((item) => (
+
+              <motion.div
+                key={item.id}
+                whileHover={{
+                  y: -5,
+                }}
+              >
+
+                <GlassCard
+                  className={`relative overflow-hidden border border-white/10 bg-gradient-to-br ${getCardGradient(
+                    item.category
+                  )} p-6`}
                 >
-                  <div>
-                    <p className="font-medium">
-                      {item.title || "Untitled Rule"}
-                    </p>
-                    <p className="mt-1 text-sm text-white/50">
-                      {formatCurrency(item.amount)}
-                    </p>
+
+                  <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl" />
+
+                  <div className="relative z-10">
+
+                    <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+
+                      <div>
+
+                        <div className="flex items-center gap-3">
+
+                          <h3 className="text-2xl font-bold text-white">
+
+                            {item.title}
+
+                          </h3>
+
+                          <span
+                            className={`inline-flex rounded-2xl border px-3 py-1 text-xs font-semibold ${getTypeBadge(
+                              item.category
+                            )}`}
+                          >
+
+                            {item.category}
+
+                          </span>
+
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+
+                          <span
+                            className={`inline-flex rounded-2xl border px-3 py-1 text-xs font-semibold ${getFrequencyBadge(
+                              item.frequency
+                            )}`}
+                          >
+
+                            {item.frequency}
+
+                          </span>
+
+                          <div className="flex items-center gap-2 text-sm text-white/60">
+
+                            <CalendarDays size={15} />
+
+                            {formatDate(
+                              item.startDate
+                            )}
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                      <div className="text-right">
+
+                        <p className="text-sm text-white/50">
+                          Recurring Amount
+                        </p>
+
+                        <h2 className="mt-2 text-4xl font-black text-white">
+
+                          {formatCurrency(
+                            item.amount
+                          )}
+
+                        </h2>
+
+                      </div>
+
+                    </div>
+
+                    <div className="mt-8 flex items-center justify-between">
+
+                      <div className="flex items-center gap-3">
+
+                        <span className="inline-flex rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300">
+
+                          ENABLED
+
+                        </span>
+
+                        <div className="flex items-center gap-2 text-sm text-cyan-300">
+
+                          <BellRing
+                            size={15}
+                          />
+
+                          Smart automation active
+
+                        </div>
+
+                      </div>
+
+                      <div className="flex gap-3">
+
+                        <button
+                          onClick={() =>
+                            handleEdit(
+                              item
+                            )
+                          }
+                          className="rounded-2xl border border-white/10 bg-white/5 p-3 transition hover:bg-white/10"
+                        >
+
+                          <Pencil
+                            size={17}
+                          />
+
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleDelete(
+                              item
+                            )
+                          }
+                          className="rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-red-300 transition hover:bg-red-500/20"
+                        >
+
+                          <Trash2
+                            size={17}
+                          />
+
+                        </button>
+
+                      </div>
+
+                    </div>
+
                   </div>
 
-                  <div>
-                    <span
-                      className={`inline-flex rounded-2xl border px-3 py-1 text-xs font-medium ${getTypeBadge(
-                        item.category || "EXPENSE"
-                      )}`}
-                    >
-                      {item.category || "EXPENSE"}
-                    </span>
-                  </div>
+                </GlassCard>
 
-                  <div>
-                    <span
-                      className={`inline-flex rounded-2xl border px-3 py-1 text-xs font-medium ${getFrequencyBadge(
-                        item.frequency || "MONTHLY"
-                      )}`}
-                    >
-                      {item.frequency || "MONTHLY"}
-                    </span>
-                  </div>
+              </motion.div>
 
-                  <div className="flex items-center gap-2 text-sm text-white/70">
-                    <CalendarDays size={14} />
-                    {formatDate(item.startDate)}
-                  </div>
+            ))
 
-                  <div>
-                    <span className="inline-flex rounded-2xl border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/50">
-                      ENABLED
-                    </span>
-                  </div>
+          )}
 
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => handleEdit(item)}
-                      className="rounded-xl border border-white/10 bg-white/5 p-2 transition hover:bg-white/10"
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item)}
-                      className="rounded-xl border border-red-500/20 bg-red-500/10 p-2 text-red-300 transition hover:bg-red-500/20"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </GlassCard>
+        </div>
+
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-3">
-            <BadgeIndianRupee size={18} className="text-cyan-400" />
-            <div>
-              <p className="text-sm text-white/50">Automation Tip</p>
-              <h3 className="text-base font-semibold">Use recurring salary</h3>
-            </div>
-          </div>
-          <p className="mt-4 text-sm text-white/60">
-            Add monthly salary as recurring income to keep forecasts and charts realistic.
-          </p>
-        </GlassCard>
+      {/* AI INSIGHTS */}
 
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-3">
-            <Repeat size={18} className="text-amber-400" />
-            <div>
-              <p className="text-sm text-white/50">Expense Automation</p>
-              <h3 className="text-base font-semibold">Track bills easily</h3>
-            </div>
-          </div>
-          <p className="mt-4 text-sm text-white/60">
-            Add rent, EMI, subscriptions, and utilities once and reuse them every cycle.
-          </p>
-        </GlassCard>
+      <div className="grid gap-5 md:grid-cols-3">
 
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-3">
-            <CalendarDays size={18} className="text-violet-400" />
-            <div>
-              <p className="text-sm text-white/50">Planning Benefit</p>
-              <h3 className="text-base font-semibold">Better budgeting</h3>
-            </div>
-          </div>
-          <p className="mt-4 text-sm text-white/60">
-            Recurring rules improve budget planning, insights, and future monthly projections.
-          </p>
-        </GlassCard>
+        <InsightCard
+          icon={
+            <Brain
+              size={18}
+              className="text-cyan-300"
+            />
+          }
+          title="AI Forecast"
+          description="Your recurring expenses may increase 8% next month."
+        />
+
+        <InsightCard
+          icon={
+            <Sparkles
+              size={18}
+              className="text-purple-300"
+            />
+          }
+          title="Optimization"
+          description="Cancel unused subscriptions to save more monthly."
+        />
+
+        <InsightCard
+          icon={
+            <TrendingUp
+              size={18}
+              className="text-emerald-300"
+            />
+          }
+          title="Planning Benefit"
+          description="Recurring automation improves long-term budgeting accuracy."
+        />
+
       </div>
+
     </div>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  subtitle,
+  icon,
+  color,
+}) {
+  const colors = {
+    cyan:
+      "bg-cyan-500/10 text-cyan-300",
+    blue: "bg-blue-500/10 text-blue-300",
+    amber:
+      "bg-amber-500/10 text-amber-300",
+    emerald:
+      "bg-emerald-500/10 text-emerald-300",
+    purple:
+      "bg-purple-500/10 text-purple-300",
+  };
+
+  return (
+    <motion.div
+      whileHover={{
+        y: -5,
+      }}
+    >
+
+      <GlassCard className="border border-cyan-500/10 bg-white/[0.03] p-6">
+
+        <div className="flex items-center justify-between">
+
+          <div>
+
+            <p className="text-sm text-white/50">
+              {title}
+            </p>
+
+            <h2 className="mt-3 text-4xl font-black text-white">
+              {value}
+            </h2>
+
+            <p className="mt-3 text-sm text-white/50">
+              {subtitle}
+            </p>
+
+          </div>
+
+          <div
+            className={`rounded-3xl p-4 ${colors[color]}`}
+          >
+            {icon}
+          </div>
+
+        </div>
+
+      </GlassCard>
+
+    </motion.div>
+  );
+}
+
+function InsightCard({
+  icon,
+  title,
+  description,
+}) {
+  return (
+    <GlassCard className="border border-cyan-500/10 bg-white/[0.03] p-6">
+
+      <div className="flex items-center gap-3">
+
+        <div className="rounded-2xl bg-white/5 p-3">
+          {icon}
+        </div>
+
+        <div>
+
+          <p className="font-semibold text-white">
+            {title}
+          </p>
+
+          <p className="mt-1 text-sm text-white/50">
+            AI powered
+          </p>
+
+        </div>
+
+      </div>
+
+      <p className="mt-5 leading-7 text-white/70">
+        {description}
+      </p>
+
+    </GlassCard>
   );
 }

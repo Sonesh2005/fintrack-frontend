@@ -24,51 +24,55 @@ export default function HealthScoreRing() {
     { name: "Remaining", value: 100 - score },
   ];
 
+  const isLoading = summaryQuery.isLoading || alertsQuery.isLoading;
+
   return (
     <GlassCard className="p-6">
       <p className="text-sm text-white/50">Financial Health</p>
       <h3 className="text-lg font-semibold">Health Score</h3>
 
-      <div className="mt-6 h-56">
-        {summaryQuery.isLoading || alertsQuery.isLoading ? (
-          <div className="flex h-full items-center justify-center rounded-2xl bg-white/5 text-sm text-white/50">
+      <div className="mt-6 relative h-[260px] min-w-0 flex items-center justify-center">
+        {isLoading ? (
+          <div className="flex h-full w-full items-center justify-center rounded-2xl bg-white/5 text-sm text-white/50">
             Calculating...
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={chartData}
-                innerRadius={58}
-                outerRadius={82}
-                startAngle={90}
-                endAngle={-270}
-                paddingAngle={2}
-                dataKey="value"
-              >
-                <Cell fill="#22d3ee" />
-                <Cell fill="rgba(255,255,255,0.10)" />
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-        )}
+          <>
+            <ResponsiveContainer width="99%" height={260}>
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={70}
+                  outerRadius={95}
+                  startAngle={90}
+                  endAngle={-270}
+                  paddingAngle={2}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  <Cell fill="#22d3ee" />
+                  <Cell fill="rgba(255,255,255,0.10)" />
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
 
-        {!summaryQuery.isLoading && !alertsQuery.isLoading && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="pointer-events-none -mt-36 flex flex-col items-center justify-center"
-          >
-            <p className="text-4xl font-bold">{score}</p>
-            <p className="text-sm text-white/50">Health Score</p>
-          </motion.div>
+            {/* Center Score Text */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+            >
+              <p className="text-4xl font-bold text-white">{score}</p>
+              <p className="text-sm text-white/50">Health Score</p>
+            </motion.div>
+          </>
         )}
       </div>
 
-      <div className="mt-2 rounded-2xl bg-white/5 p-4 text-sm text-white/65">
-        {summaryQuery.isLoading || alertsQuery.isLoading
-          ? "Loading health insights..."
-          : message}
+      <div className="mt-3 rounded-2xl bg-white/5 p-4 text-sm text-white/65">
+        {isLoading ? "Loading health insights..." : message}
       </div>
     </GlassCard>
   );

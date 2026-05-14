@@ -1,674 +1,1362 @@
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
+
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
+
 import {
-  ArrowUpRight,
-  ArrowDownRight,
-  Wallet,
-  PiggyBank,
-  FileBarChart2,
-  Repeat,
   Download,
-  FileText,
   TrendingUp,
+  TrendingDown,
+  Wallet,
+  Brain,
+  Target,
 } from "lucide-react";
+
 import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  PieChart,
+  Pie,
+  Cell,
   CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
-import toast from "react-hot-toast";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
-import GlassCard from "../components/ui/GlassCard";
-import useDashboardData from "../features/dashboard/useDashboardData";
-import useBudgetData from "../features/budget/useBudgetData";
-import useRecurringData from "../features/recurring/useRecurringData";
-import formatCurrency from "../utils/formatCurrency";
+const COLORS = [
+  "#22d3ee",
+  "#3b82f6",
+  "#8b5cf6",
+  "#14b8a6",
+  "#f59e0b",
+  "#ec4899",
+];
 
-const COLORS = ["#22d3ee", "#a78bfa", "#f59e0b", "#34d399", "#3b82f6", "#f472b6"];
+function formatCurrency(value) {
 
-const formatINRForExport = (value) =>
-  `INR ${new Intl.NumberFormat("en-IN", {
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0))}`;
+  return `Rs. ${Number(
+    value || 0
+  ).toLocaleString("en-IN")}`;
+}
 
 export default function ReportsPage() {
-  const { summaryQuery, monthlyQuery, categoryQuery } = useDashboardData();
-  const { alertsQuery } = useBudgetData();
-  const { recurringQuery } = useRecurringData();
 
-  const isLoading =
-    summaryQuery.isLoading ||
-    monthlyQuery.isLoading ||
-    categoryQuery.isLoading ||
-    alertsQuery.isLoading ||
-    recurringQuery.isLoading;
+  const totalIncome = 145000;
 
-  const isError =
-    summaryQuery.isError ||
-    monthlyQuery.isError ||
-    categoryQuery.isError ||
-    alertsQuery.isError ||
-    recurringQuery.isError;
+  const totalExpense = 82000;
 
-  const summary = summaryQuery.data || {};
-  const monthlyRaw = monthlyQuery.data || [];
-  const categoryRaw = categoryQuery.data || [];
-  const alerts = alertsQuery.data || {};
-  const recurringItems = recurringQuery.data || [];
+  const savings =
+    totalIncome - totalExpense;
 
-  const totalIncome = summary.totalIncome ?? 0;
-  const totalExpense = summary.totalExpense ?? 0;
-  const savings = summary.savings ?? totalIncome - totalExpense;
-  const netFlow = totalIncome - totalExpense;
-  const savingsRate =
-    totalIncome > 0 ? Math.round((savings / totalIncome) * 100) : 0;
-
-  const monthNames = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  ];
-
-  const monthlyData = monthNames.map((name, index) => {
-    const monthNumber = index + 1;
-    const record = monthlyRaw.find((m) => m.month === monthNumber);
-
-    return {
-      month: name,
-      income: record?.income ?? 0,
-      expense: record?.expense ?? 0,
-    };
-  });
-
-  const categoryData = categoryRaw
-    .map((item, index) => ({
-      name: item.category ?? item.name ?? `Category ${index + 1}`,
-      value: Number(item.total ?? item.amount ?? item.value ?? 0),
-    }))
-    .sort((a, b) => b.value - a.value);
-
-  const topCategory = categoryData.length > 0 ? categoryData[0] : null;
-
-  const recurringTotal = recurringItems.reduce(
-    (sum, item) => sum + Number(item.amount || 0),
-    0
+  const savingsRate = Math.round(
+    (savings / totalIncome) * 100
   );
 
-  const budgetSpent = alerts.currentSpent ?? alerts.spent ?? 0;
-  const budgetUsed =
-    alerts.percentageUsed ?? alerts.usedPercentage ?? alerts.spentPercentage ?? 0;
-  const budgetStatus = alerts.status ?? "NO_BUDGET";
+  const healthScore = 92;
 
-  const downloadCSV = () => {
+  const budgetLimit = 90000;
+
+  const budgetUsed = Math.round(
+    (totalExpense / budgetLimit) *
+      100
+  );
+
+  const monthlyData = [
+    {
+      month: "Jan",
+      income: 35000,
+      expense: 22000,
+    },
+
+    {
+      month: "Feb",
+      income: 42000,
+      expense: 28000,
+    },
+
+    {
+      month: "Mar",
+      income: 38000,
+      expense: 26000,
+    },
+
+    {
+      month: "Apr",
+      income: 52000,
+      expense: 30000,
+    },
+
+    {
+      month: "May",
+      income: 61000,
+      expense: 34000,
+    },
+  ];
+
+  const categoryData = [
+    {
+      name: "Food",
+      value: 18000,
+    },
+
+    {
+      name: "Shopping",
+      value: 12000,
+    },
+
+    {
+      name: "Bills",
+      value: 15000,
+    },
+
+    {
+      name: "Travel",
+      value: 8000,
+    },
+
+    {
+      name: "Entertainment",
+      value: 6000,
+    },
+  ];
+
+  const recurringItems = [
+    {
+      name: "Netflix",
+      amount: 649,
+    },
+
+    {
+      name: "Spotify",
+      amount: 119,
+    },
+
+    {
+      name: "Rent",
+      amount: 18000,
+    },
+  ];
+
+  const recurringTotal =
+    recurringItems.reduce(
+      (acc, item) =>
+        acc + item.amount,
+      0
+    );
+
+  const downloadPDF = async () => {
+
     try {
-      const rows = [];
 
-      rows.push(["FINTRACK FINANCIAL REPORT"]);
-      rows.push(["Generated At", new Date().toLocaleString("en-IN")]);
-      rows.push([]);
-
-      rows.push(["SUMMARY"]);
-      rows.push(["Metric", "Value"]);
-      rows.push(["Total Income", formatINRForExport(totalIncome)]);
-      rows.push(["Total Expense", formatINRForExport(totalExpense)]);
-      rows.push(["Net Savings", formatINRForExport(savings)]);
-      rows.push(["Net Flow", formatINRForExport(netFlow)]);
-      rows.push(["Savings Rate", `${savingsRate}%`]);
-      rows.push(["Top Expense Category", topCategory ? topCategory.name : "—"]);
-      rows.push([]);
-
-      rows.push(["BUDGET SNAPSHOT"]);
-      rows.push(["Metric", "Value"]);
-      rows.push(["Current Spent", formatINRForExport(budgetSpent)]);
-      rows.push(["Budget Used", `${budgetUsed}%`]);
-      rows.push(["Budget Status", budgetStatus]);
-      rows.push([]);
-
-      rows.push(["RECURRING SNAPSHOT"]);
-      rows.push(["Metric", "Value"]);
-      rows.push(["Recurring Rules", recurringItems.length]);
-      rows.push(["Recurring Total", formatINRForExport(recurringTotal)]);
-      rows.push([]);
-
-      rows.push(["CATEGORY BREAKDOWN"]);
-      rows.push(["Category", "Amount"]);
-      if (categoryData.length === 0) {
-        rows.push(["No category data", formatINRForExport(0)]);
-      } else {
-        categoryData.forEach((item) => {
-          rows.push([item.name, formatINRForExport(item.value)]);
-        });
-      }
-      rows.push([]);
-
-      rows.push(["MONTHLY ANALYTICS"]);
-      rows.push(["Month", "Income", "Expense"]);
-      monthlyData.forEach((item) => {
-        rows.push([
-          item.month,
-          formatINRForExport(item.income),
-          formatINRForExport(item.expense),
-        ]);
-      });
-
-      const csvContent = rows
-        .map((row) =>
-          row
-            .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
-            .join(",")
-        )
-        .join("\n");
-
-      const blob = new Blob([csvContent], {
-        type: "text/csv;charset=utf-8;",
-      });
-
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "fintrack-report.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      toast.success("CSV downloaded");
-    } catch (error) {
-      console.error("CSV download failed:", error);
-      toast.error("Failed to download CSV");
-    }
-  };
-
-  const addSectionTitle = (doc, title, y) => {
-    doc.setFillColor(15, 23, 42);
-    doc.roundedRect(14, y, 182, 10, 2, 2, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text(title, 18, y + 6.5);
-  };
-
-  const ensurePageSpace = (doc, nextSectionHeight = 30) => {
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const currentY = doc.lastAutoTable?.finalY || 20;
-    if (currentY + nextSectionHeight > pageHeight - 20) {
-      doc.addPage();
-      return 20;
-    }
-    return currentY + 8;
-  };
-
-  const downloadPDF = () => {
-    try {
       const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
 
-      doc.setFillColor(11, 16, 32);
-      doc.rect(0, 0, pageWidth, 34, "F");
+      const drawCard = (
+        x,
+        y,
+        w,
+        h,
+        title,
+        value,
+        accent = [34, 211, 238]
+      ) => {
 
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(20);
-      doc.text("FinTrack Financial Report", 14, 15);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.text(`Generated: ${new Date().toLocaleString("en-IN")}`, 14, 24);
-
-      doc.setTextColor(31, 41, 55);
-
-      addSectionTitle(doc, "Summary", 40);
-      autoTable(doc, {
-        startY: 53,
-        head: [["Metric", "Value"]],
-        body: [
-          ["Total Income", formatINRForExport(totalIncome)],
-          ["Total Expense", formatINRForExport(totalExpense)],
-          ["Net Savings", formatINRForExport(savings)],
-          ["Net Flow", formatINRForExport(netFlow)],
-          ["Savings Rate", `${savingsRate}%`],
-          ["Top Expense Category", topCategory ? topCategory.name : "—"],
-        ],
-        theme: "grid",
-        headStyles: {
-          fillColor: [34, 211, 238],
-          textColor: [15, 23, 42],
-          fontStyle: "bold",
-        },
-        bodyStyles: { textColor: [31, 41, 55] },
-        styles: {
-          fontSize: 10,
-          cellPadding: 4,
-          lineColor: [226, 232, 240],
-          lineWidth: 0.2,
-        },
-      });
-
-      let nextY = ensurePageSpace(doc);
-      addSectionTitle(doc, "Budget Snapshot", nextY);
-      autoTable(doc, {
-        startY: nextY + 13,
-        head: [["Metric", "Value"]],
-        body: [
-          ["Current Spent", formatINRForExport(budgetSpent)],
-          ["Budget Used", `${budgetUsed}%`],
-          ["Budget Status", budgetStatus],
-        ],
-        theme: "grid",
-        headStyles: {
-          fillColor: [167, 139, 250],
-          textColor: [255, 255, 255],
-          fontStyle: "bold",
-        },
-        bodyStyles: { textColor: [31, 41, 55] },
-        styles: {
-          fontSize: 10,
-          cellPadding: 4,
-          lineColor: [226, 232, 240],
-          lineWidth: 0.2,
-        },
-      });
-
-      nextY = ensurePageSpace(doc);
-      addSectionTitle(doc, "Recurring Snapshot", nextY);
-      autoTable(doc, {
-        startY: nextY + 13,
-        head: [["Metric", "Value"]],
-        body: [
-          ["Recurring Rules", recurringItems.length],
-          ["Recurring Total", formatINRForExport(recurringTotal)],
-        ],
-        theme: "grid",
-        headStyles: {
-          fillColor: [52, 211, 153],
-          textColor: [15, 23, 42],
-          fontStyle: "bold",
-        },
-        bodyStyles: { textColor: [31, 41, 55] },
-        styles: {
-          fontSize: 10,
-          cellPadding: 4,
-          lineColor: [226, 232, 240],
-          lineWidth: 0.2,
-        },
-      });
-
-      nextY = ensurePageSpace(doc, 50);
-      addSectionTitle(doc, "Category Breakdown", nextY);
-      autoTable(doc, {
-        startY: nextY + 13,
-        head: [["Category", "Amount"]],
-        body:
-          categoryData.length > 0
-            ? categoryData.map((item) => [item.name, formatINRForExport(item.value)])
-            : [["No category data", formatINRForExport(0)]],
-        theme: "striped",
-        headStyles: {
-          fillColor: [245, 158, 11],
-          textColor: [15, 23, 42],
-          fontStyle: "bold",
-        },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        bodyStyles: { textColor: [31, 41, 55] },
-        styles: {
-          fontSize: 10,
-          cellPadding: 4,
-          lineColor: [226, 232, 240],
-          lineWidth: 0.2,
-        },
-      });
-
-      nextY = ensurePageSpace(doc, 60);
-      addSectionTitle(doc, "Monthly Analytics", nextY);
-      autoTable(doc, {
-        startY: nextY + 13,
-        head: [["Month", "Income", "Expense"]],
-        body: monthlyData.map((item) => [
-          item.month,
-          formatINRForExport(item.income),
-          formatINRForExport(item.expense),
-        ]),
-        theme: "striped",
-        headStyles: {
-          fillColor: [59, 130, 246],
-          textColor: [255, 255, 255],
-          fontStyle: "bold",
-        },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        bodyStyles: { textColor: [31, 41, 55] },
-        styles: {
-          fontSize: 10,
-          cellPadding: 4,
-          lineColor: [226, 232, 240],
-          lineWidth: 0.2,
-        },
-      });
-
-      const pageCount = doc.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i += 1) {
-        doc.setPage(i);
-        doc.setDrawColor(226, 232, 240);
-        doc.line(14, pageHeight - 15, pageWidth - 14, pageHeight - 15);
-        doc.setFontSize(9);
-        doc.setTextColor(100);
-        doc.text(
-          `FinTrack Report • Page ${i} of ${pageCount}`,
-          14,
-          pageHeight - 8
+        doc.setFillColor(
+          16,
+          24,
+          40
         );
-      }
 
-      doc.save("fintrack-report.pdf");
-      toast.success("PDF downloaded");
+        doc.roundedRect(
+          x,
+          y,
+          w,
+          h,
+          6,
+          6,
+          "F"
+        );
+
+        doc.setDrawColor(
+          ...accent
+        );
+
+        doc.roundedRect(
+          x,
+          y,
+          w,
+          h,
+          6,
+          6
+        );
+
+        doc.setTextColor(
+          148,
+          163,
+          184
+        );
+
+        doc.setFontSize(10);
+
+        doc.text(
+          title,
+          x + 5,
+          y + 10
+        );
+
+        doc.setTextColor(
+          255,
+          255,
+          255
+        );
+
+        doc.setFontSize(18);
+
+        doc.text(
+          value,
+          x + 5,
+          y + 24
+        );
+      };
+
+      const drawProgressBar = (
+        x,
+        y,
+        w,
+        value,
+        color = [34, 211, 238]
+      ) => {
+
+        doc.setFillColor(
+          30,
+          41,
+          59
+        );
+
+        doc.roundedRect(
+          x,
+          y,
+          w,
+          8,
+          4,
+          4,
+          "F"
+        );
+
+        doc.setFillColor(
+          ...color
+        );
+
+        doc.roundedRect(
+          x,
+          y,
+          (w * value) / 100,
+          8,
+          4,
+          4,
+          "F"
+        );
+      };
+
+      // PAGE 1
+
+      doc.setFillColor(
+        6,
+        11,
+        25
+      );
+
+      doc.rect(
+        0,
+        0,
+        210,
+        297,
+        "F"
+      );
+
+      doc.setTextColor(
+        34,
+        211,
+        238
+      );
+
+      doc.setFontSize(30);
+
+      doc.text(
+        "FinTrack AI Report",
+        14,
+        22
+      );
+
+      doc.setTextColor(
+        148,
+        163,
+        184
+      );
+
+      doc.setFontSize(11);
+
+      doc.text(
+        `Generated ${new Date().toLocaleString()}`,
+        14,
+        30
+      );
+
+      doc.setFillColor(
+        15,
+        23,
+        42
+      );
+
+      doc.roundedRect(
+        14,
+        42,
+        182,
+        60,
+        8,
+        8,
+        "F"
+      );
+
+      doc.setTextColor(
+        255,
+        255,
+        255
+      );
+
+      doc.setFontSize(18);
+
+      doc.text(
+        "Financial Health Score",
+        24,
+        58
+      );
+
+      doc.setTextColor(
+        34,
+        211,
+        238
+      );
+
+      doc.setFontSize(42);
+
+      doc.text(
+        `${healthScore}`,
+        24,
+        86
+      );
+
+      doc.setTextColor(
+        255,
+        255,
+        255
+      );
+
+      doc.setFontSize(16);
+
+      doc.text(
+        "/100",
+        52,
+        86
+      );
+
+      drawCard(
+        14,
+        118,
+        42,
+        34,
+        "Income",
+        formatCurrency(totalIncome)
+      );
+
+      drawCard(
+        61,
+        118,
+        42,
+        34,
+        "Expense",
+        formatCurrency(totalExpense),
+        [168, 85, 247]
+      );
+
+      drawCard(
+        108,
+        118,
+        42,
+        34,
+        "Savings",
+        formatCurrency(savings),
+        [16, 185, 129]
+      );
+
+      drawCard(
+        155,
+        118,
+        41,
+        34,
+        "Rate",
+        `${savingsRate}%`,
+        [59, 130, 246]
+      );
+
+      doc.setFillColor(
+        15,
+        23,
+        42
+      );
+
+      doc.roundedRect(
+        14,
+        165,
+        182,
+        70,
+        8,
+        8,
+        "F"
+      );
+
+      doc.setTextColor(
+        34,
+        211,
+        238
+      );
+
+      doc.setFontSize(18);
+
+      doc.text(
+        "AI Insights",
+        20,
+        180
+      );
+
+      doc.setTextColor(
+        255,
+        255,
+        255
+      );
+
+      doc.setFontSize(11);
+
+      doc.text(
+        `• Savings rate increased to ${savingsRate}%`,
+        22,
+        196
+      );
+
+      doc.text(
+        `• Food category dominates spending`,
+        22,
+        208
+      );
+
+      doc.text(
+        `• Monthly recurring spend is ${formatCurrency(recurringTotal)}`,
+        22,
+        220
+      );
+
+      doc.text(
+        "Budget Usage",
+        20,
+        250
+      );
+
+      drawProgressBar(
+        20,
+        256,
+        160,
+        budgetUsed,
+        [168, 85, 247]
+      );
+
+      doc.setTextColor(
+        168,
+        85,
+        247
+      );
+
+      doc.text(
+        `${budgetUsed}%`,
+        184,
+        262
+      );
+
+      // PAGE 2
+
+      doc.addPage();
+
+      doc.setFillColor(
+        8,
+        16,
+        32
+      );
+
+      doc.rect(
+        0,
+        0,
+        210,
+        297,
+        "F"
+      );
+
+      doc.setTextColor(
+        34,
+        211,
+        238
+      );
+
+      doc.setFontSize(24);
+
+      doc.text(
+        "Monthly Analytics",
+        14,
+        20
+      );
+
+      await new Promise(
+        (resolve) =>
+          setTimeout(resolve, 500)
+      );
+
+      const barChart =
+        document.getElementById(
+          "pdf-bar-chart"
+        );
+
+      const barCanvas =
+        await html2canvas(
+          barChart,
+          {
+            backgroundColor:
+              "#081020",
+
+            scale: 2,
+          }
+        );
+
+      const barImage =
+        barCanvas.toDataURL(
+          "image/png"
+        );
+
+      doc.addImage(
+        barImage,
+        "PNG",
+        10,
+        35,
+        190,
+        90
+      );
+
+      autoTable(doc, {
+        startY: 140,
+
+        head: [
+          [
+            "Month",
+            "Income",
+            "Expense",
+          ],
+        ],
+
+        body:
+          monthlyData.map(
+            (month) => [
+              month.month,
+
+              formatCurrency(
+                month.income
+              ),
+
+              formatCurrency(
+                month.expense
+              ),
+            ]
+          ),
+
+        theme: "grid",
+
+        styles: {
+          fillColor: [
+            18,
+            28,
+            52,
+          ],
+
+          textColor: [
+            255,
+            255,
+            255,
+          ],
+        },
+
+        headStyles: {
+          fillColor: [
+            34,
+            211,
+            238,
+          ],
+
+          textColor: [0, 0, 0],
+        },
+      });
+
+      // PAGE 3
+
+      doc.addPage();
+
+      doc.setFillColor(
+        8,
+        16,
+        32
+      );
+
+      doc.rect(
+        0,
+        0,
+        210,
+        297,
+        "F"
+      );
+
+      doc.setTextColor(
+        34,
+        211,
+        238
+      );
+
+      doc.setFontSize(24);
+
+      doc.text(
+        "Expense Categories",
+        14,
+        20
+      );
+
+      const pieChart =
+        document.getElementById(
+          "pdf-pie-chart"
+        );
+
+      const pieCanvas =
+        await html2canvas(
+          pieChart,
+          {
+            backgroundColor:
+              "#081020",
+
+            scale: 2,
+          }
+        );
+
+      const pieImage =
+        pieCanvas.toDataURL(
+          "image/png"
+        );
+
+      doc.addImage(
+        pieImage,
+        "PNG",
+        10,
+        35,
+        190,
+        110
+      );
+
+      autoTable(doc, {
+        startY: 160,
+
+        head: [
+          [
+            "Category",
+            "Amount",
+          ],
+        ],
+
+        body:
+          categoryData.map(
+            (item) => [
+              item.name,
+
+              formatCurrency(
+                item.value
+              ),
+            ]
+          ),
+
+        theme: "grid",
+
+        styles: {
+          fillColor: [
+            18,
+            28,
+            52,
+          ],
+
+          textColor: [
+            255,
+            255,
+            255,
+          ],
+        },
+
+        headStyles: {
+          fillColor: [
+            168,
+            85,
+            247,
+          ],
+
+          textColor: [
+            255,
+            255,
+            255,
+          ],
+        },
+      });
+
+      doc.save(
+        "fintrack-premium-report.pdf"
+      );
+
+      toast.success(
+        "Premium PDF Downloaded"
+      );
+
     } catch (error) {
-      console.error("PDF download failed:", error);
-      toast.error("Failed to download PDF");
+
+      console.error(error);
+
+      toast.error(
+        "PDF export failed"
+      );
     }
   };
 
   return (
-    <div className="space-y-6">
-      {isError && (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          Failed to load report data.
-        </div>
-      )}
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="space-y-8 p-6">
+
+      <div className="flex items-center justify-between">
+
         <div>
-          <p className="text-sm text-white/50">Financial Intelligence</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Reports</h1>
+
+          <p className="text-cyan-400">
+            AI Financial Intelligence
+          </p>
+
+          <h1 className="text-4xl font-black text-white">
+            Reports Center
+          </h1>
+
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={downloadCSV}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-          >
-            <Download size={16} />
-            Download CSV
-          </button>
+        <button
+          onClick={downloadPDF}
+          className="
+            flex items-center gap-3
+            rounded-2xl
+            bg-gradient-to-r
+            from-cyan-500
+            to-purple-500
+            px-6 py-4
+            text-white
+          "
+        >
 
-          <button
-            onClick={downloadPDF}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
-          >
-            <FileText size={16} />
-            Download PDF
-          </button>
-        </div>
+          <Download size={20} />
+
+          Download PDF
+
+        </button>
+
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <ReportCard
-          title="Total Income"
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+
+        <Card
+          title="Income"
           value={formatCurrency(totalIncome)}
-          icon={<ArrowUpRight size={18} />}
-          iconClass="bg-cyan-500/10 text-cyan-400"
+          icon={<TrendingUp size={20} />}
         />
-        <ReportCard
-          title="Total Expense"
+
+        <Card
+          title="Expense"
           value={formatCurrency(totalExpense)}
-          icon={<ArrowDownRight size={18} />}
-          iconClass="bg-amber-500/10 text-amber-400"
+          icon={<TrendingDown size={20} />}
         />
-        <ReportCard
-          title="Net Savings"
+
+        <Card
+          title="Savings"
           value={formatCurrency(savings)}
-          icon={<PiggyBank size={18} />}
-          iconClass="bg-emerald-500/10 text-emerald-400"
+          icon={<Wallet size={20} />}
         />
-        <ReportCard
+
+        <Card
           title="Savings Rate"
           value={`${savingsRate}%`}
-          icon={<Wallet size={18} />}
-          iconClass="bg-violet-500/10 text-violet-400"
+          icon={<Target size={20} />}
         />
-        <ReportCard
-          title="Net Flow"
-          value={formatCurrency(netFlow)}
-          icon={<TrendingUp size={18} />}
-          iconClass="bg-blue-500/10 text-blue-400"
-        />
+
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <GlassCard className="p-6 xl:col-span-2">
-          <p className="text-sm text-white/50">Monthly Analytics</p>
-          <h3 className="text-lg font-semibold">Income vs Expense</h3>
+      <div className="grid gap-6 xl:grid-cols-2">
 
-          <div className="mt-6 h-80">
-            {isLoading ? (
-              <div className="h-full animate-pulse rounded-2xl bg-white/5" />
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={monthlyData}>
-                  <defs>
-                    <linearGradient id="incomeFillReport" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#22d3ee" stopOpacity={0.02} />
-                    </linearGradient>
-                    <linearGradient id="expenseFillReport" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#a78bfa" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
+        <div
+  className="
+    relative overflow-hidden
+    rounded-[32px]
+    border border-cyan-500/10
+    bg-gradient-to-br
+    from-[#081120]
+    via-[#0b132b]
+    to-[#15162c]
+    p-8
+    shadow-2xl
+  "
+>
 
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="month" stroke="rgba(255,255,255,0.45)" />
-                  <YAxis stroke="rgba(255,255,255,0.45)" />
-                  <Tooltip
-                    formatter={(value) => formatCurrency(value)}
-                    contentStyle={{
-                      background: "#121a30",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: "16px",
-                      color: "white",
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="income"
-                    stroke="#22d3ee"
-                    fill="url(#incomeFillReport)"
-                    strokeWidth={3}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="expense"
-                    stroke="#a78bfa"
-                    fill="url(#expenseFillReport)"
-                    strokeWidth={3}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
+  {/* GLOW */}
+
+  <div
+    className="
+      absolute
+      -top-24
+      -right-24
+      h-64
+      w-64
+      rounded-full
+      bg-cyan-500/10
+      blur-3xl
+    "
+  />
+
+  <div
+    className="
+      absolute
+      bottom-0
+      left-0
+      h-40
+      w-40
+      rounded-full
+      bg-purple-500/10
+      blur-3xl
+    "
+  />
+
+  <div className="relative z-10">
+
+    <div className="mb-8 flex items-center justify-between">
+
+      <div>
+
+        <p className="text-cyan-400">
+          Financial Analytics
+        </p>
+
+        <h2
+          className="
+            text-3xl
+            font-black
+            text-white
+          "
+        >
+          Monthly Analytics
+        </h2>
+
+      </div>
+
+      <div
+        className="
+          rounded-2xl
+          border border-cyan-500/20
+          bg-cyan-500/10
+          px-4 py-2
+          text-cyan-300
+        "
+      >
+        +18.4%
+      </div>
+
+    </div>
+
+    <div className="h-[420px]">
+      <ResponsiveContainer
+  width="100%"
+  height="100%"
+>
+
+  <AreaChart data={monthlyData}>
+
+    <defs>
+
+      <linearGradient
+        id="incomeGradient"
+        x1="0"
+        y1="0"
+        x2="0"
+        y2="1"
+      >
+
+        <stop
+          offset="0%"
+          stopColor="#22d3ee"
+          stopOpacity={0.7}
+        />
+
+        <stop
+          offset="100%"
+          stopColor="#22d3ee"
+          stopOpacity={0}
+        />
+
+      </linearGradient>
+
+      <linearGradient
+        id="expenseGradient"
+        x1="0"
+        y1="0"
+        x2="0"
+        y2="1"
+      >
+
+        <stop
+          offset="0%"
+          stopColor="#8b5cf6"
+          stopOpacity={0.7}
+        />
+
+        <stop
+          offset="100%"
+          stopColor="#8b5cf6"
+          stopOpacity={0}
+        />
+
+      </linearGradient>
+
+    </defs>
+
+    <CartesianGrid
+      strokeDasharray="3 3"
+      stroke="rgba(255,255,255,0.05)"
+      vertical={false}
+    />
+
+    <XAxis
+      dataKey="month"
+      stroke="#64748b"
+      tickLine={false}
+      axisLine={false}
+    />
+
+    <YAxis
+      stroke="#64748b"
+      tickLine={false}
+      axisLine={false}
+    />
+
+    <Tooltip
+      contentStyle={{
+        background:
+          "#0f172a",
+
+        border:
+          "1px solid rgba(34,211,238,0.2)",
+
+        borderRadius:
+          "16px",
+
+        color: "white",
+      }}
+    />
+
+    <Area
+      type="monotone"
+      dataKey="income"
+      stroke="#22d3ee"
+      strokeWidth={4}
+      fill="url(#incomeGradient)"
+    />
+
+    <Area
+      type="monotone"
+      dataKey="expense"
+      stroke="#8b5cf6"
+      strokeWidth={4}
+      fill="url(#expenseGradient)"
+    />
+
+  </AreaChart>
+
+</ResponsiveContainer>
           </div>
-        </GlassCard>
 
-        <GlassCard className="p-6">
-          <p className="text-sm text-white/50">Expense Analysis</p>
-          <h3 className="text-lg font-semibold">Category Breakdown</h3>
+  </div>
 
-          <div className="mt-6 h-64">
-            {categoryData.length === 0 ? (
-              <div className="flex h-full items-center justify-center rounded-2xl bg-white/5 text-sm text-white/50">
-                No category data available.
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    innerRadius={65}
-                    outerRadius={95}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell
-                        key={entry.name}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => formatCurrency(value)}
-                    contentStyle={{
-                      background: "#121a30",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: "16px",
-                      color: "white",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+</div>  
 
-          <div className="mt-4 space-y-3">
-            {categoryData.length === 0 ? (
-              <div className="rounded-2xl bg-white/5 p-4 text-sm text-white/50">
-                No category data available.
-              </div>
-            ) : (
-              categoryData.slice(0, 4).map((item, index) => (
-                <div
-                  key={item.name}
-                  className="flex items-center justify-between rounded-2xl bg-white/5 p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+        <ChartCard title="Expense Categories">
+
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+          >
+
+            <PieChart>
+
+              <Pie
+                data={categoryData}
+                innerRadius={80}
+                outerRadius={120}
+                dataKey="value"
+              >
+
+                {categoryData.map(
+                  (
+                    entry,
+                    index
+                  ) => (
+
+                    <Cell
+                      key={entry.name}
+                      fill={
+                        COLORS[
+                          index %
+                            COLORS.length
+                        ]
+                      }
                     />
-                    <span className="text-sm text-white/80">{item.name}</span>
-                  </div>
-                  <span className="text-sm font-medium">
-                    {formatCurrency(item.value)}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </GlassCard>
+
+                  )
+                )}
+
+              </Pie>
+
+              <Tooltip />
+
+            </PieChart>
+
+          </ResponsiveContainer>
+
+        </ChartCard>
+
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <GlassCard className="p-6">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white/8 p-3">
-              <FileBarChart2 size={18} />
-            </div>
-            <div>
-              <p className="text-sm text-white/50">Insight Summary</p>
-              <h3 className="text-lg font-semibold">Key Highlights</h3>
-            </div>
+      <div
+        className="
+          rounded-3xl
+          border border-cyan-500/10
+          bg-white/[0.03]
+          p-8
+        "
+      >
+
+        <div className="flex items-center gap-4">
+
+          <div
+            className="
+              rounded-2xl
+              bg-cyan-500/10
+              p-4
+              text-cyan-300
+            "
+          >
+            <Brain size={24} />
           </div>
 
-          <div className="mt-6 space-y-3">
-            <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-sm text-white/50">Top Expense Category</p>
-              <p className="mt-2 text-lg font-semibold">
-                {topCategory ? topCategory.name : "—"}
-              </p>
-            </div>
+          <div>
 
-            <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-sm text-white/50">Savings Rate</p>
-              <p className="mt-2 text-lg font-semibold">{savingsRate}%</p>
-            </div>
+            <p className="text-cyan-400">
+              AI Insights
+            </p>
 
-            <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-sm text-white/50">Budget Status</p>
-              <p className="mt-2 text-lg font-semibold">{budgetStatus}</p>
-            </div>
-          </div>
-        </GlassCard>
+            <h2 className="text-2xl font-bold text-white">
+              Financial Summary
+            </h2>
 
-        <GlassCard className="p-6">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white/8 p-3">
-              <Wallet size={18} />
-            </div>
-            <div>
-              <p className="text-sm text-white/50">Budget Snapshot</p>
-              <h3 className="text-lg font-semibold">Usage Overview</h3>
-            </div>
           </div>
 
-          <div className="mt-6 space-y-4">
-            <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-sm text-white/50">Current Spent</p>
-              <p className="mt-2 text-lg font-semibold">
-                {formatCurrency(budgetSpent)}
-              </p>
-            </div>
+        </div>
 
-            <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-sm text-white/50">Budget Used</p>
-              <p className="mt-2 text-lg font-semibold">{budgetUsed}%</p>
-            </div>
+        <div className="mt-8 grid gap-5 md:grid-cols-3">
 
-            <div className="h-3 w-full rounded-full bg-white/10">
-              <div
-                className="h-3 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500"
-                style={{ width: `${Math.min(Number(budgetUsed), 100)}%` }}
+          <InsightCard
+            title="Healthy Savings"
+            description={`Savings rate is ${savingsRate}%`}
+          />
+
+          <InsightCard
+            title="Budget Usage"
+            description={`${budgetUsed}% of budget used`}
+          />
+
+          <InsightCard
+            title="Recurring Rules"
+            description={`${recurringItems.length} active subscriptions`}
+          />
+
+        </div>
+
+      </div>
+
+      {/* HIDDEN PDF CHARTS */}
+
+      <div
+        className="
+          fixed
+          left-0
+          top-0
+          opacity-0
+          pointer-events-none
+        "
+      >
+
+        <div
+          id="pdf-bar-chart"
+          className="
+            h-[400px]
+            w-[700px]
+            bg-[#081020]
+            p-8
+          "
+        >
+
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+          >
+
+            <AreaChart data={monthlyData}>
+
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="rgba(255,255,255,0.1)"
               />
-            </div>
-          </div>
-        </GlassCard>
 
-        <GlassCard className="p-6">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-white/8 p-3">
-              <Repeat size={18} />
-            </div>
-            <div>
-              <p className="text-sm text-white/50">Recurring Snapshot</p>
-              <h3 className="text-lg font-semibold">Commitments</h3>
-            </div>
-          </div>
+              <XAxis
+                dataKey="month"
+                stroke="#94a3b8"
+              />
 
-          <div className="mt-6 space-y-3">
-            <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-sm text-white/50">Recurring Rules</p>
-              <p className="mt-2 text-lg font-semibold">{recurringItems.length}</p>
-            </div>
+              <YAxis stroke="#94a3b8" />
 
-            <div className="rounded-2xl bg-white/5 p-4">
-              <p className="text-sm text-white/50">Recurring Total</p>
-              <p className="mt-2 text-lg font-semibold">
-                {formatCurrency(recurringTotal)}
-              </p>
-            </div>
-          </div>
-        </GlassCard>
+              <Tooltip />
+
+              <Area
+                type="monotone"
+                dataKey="income"
+                stroke="#22d3ee"
+                fill="#22d3ee"
+              />
+
+              <Area
+                type="monotone"
+                dataKey="expense"
+                stroke="#a855f7"
+                fill="#a855f7"
+              />
+
+            </AreaChart>
+
+          </ResponsiveContainer>
+
+        </div>
+
+        <div
+          id="pdf-pie-chart"
+          className="
+            mt-10
+            h-[450px]
+            w-[700px]
+            bg-[#081020]
+            p-8
+          "
+        >
+
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+          >
+
+            <PieChart>
+
+              <Pie
+                data={categoryData}
+                innerRadius={90}
+                outerRadius={140}
+                dataKey="value"
+              >
+
+                {categoryData.map(
+                  (
+                    entry,
+                    index
+                  ) => (
+
+                    <Cell
+                      key={entry.name}
+                      fill={
+                        COLORS[
+                          index %
+                            COLORS.length
+                        ]
+                      }
+                    />
+
+                  )
+                )}
+
+              </Pie>
+
+            </PieChart>
+
+          </ResponsiveContainer>
+
+        </div>
+
       </div>
+
     </div>
   );
 }
 
-function ReportCard({ title, value, icon, iconClass }) {
+function Card({
+  title,
+  value,
+  icon,
+}) {
+
   return (
-    <motion.div whileHover={{ y: -4 }}>
-      <GlassCard className="p-5">
-        <div className="flex items-center gap-3">
-          <div className={`rounded-2xl p-3 ${iconClass}`}>{icon}</div>
+
+    <motion.div
+      whileHover={{
+        y: -5,
+      }}
+    >
+
+      <div
+        className="
+          rounded-3xl
+          border border-cyan-500/10
+          bg-white/[0.03]
+          p-6
+        "
+      >
+
+        <div className="flex items-center justify-between">
+
           <div>
-            <p className="text-sm text-white/50">{title}</p>
-            <h3 className="mt-1 text-3xl font-bold">{value}</h3>
+
+            <p className="text-sm text-white/50">
+              {title}
+            </p>
+
+            <h2
+              className="
+                mt-3
+                text-4xl
+                font-black
+                text-white
+              "
+            >
+              {value}
+            </h2>
+
           </div>
+
+          <div
+            className="
+              rounded-3xl
+              bg-cyan-500/10
+              p-4
+              text-cyan-300
+            "
+          >
+            {icon}
+          </div>
+
         </div>
-      </GlassCard>
+
+      </div>
+
     </motion.div>
+  );
+}
+
+function ChartCard({
+  title,
+  children,
+}) {
+
+  return (
+
+    <div
+      className="
+        rounded-3xl
+        border border-cyan-500/10
+        bg-white/[0.03]
+        p-6
+      "
+    >
+
+      <h2
+        className="
+          mb-6
+          text-2xl
+          font-bold
+          text-white
+        "
+      >
+        {title}
+      </h2>
+
+      <div className="h-[350px]">
+        {children}
+      </div>
+
+    </div>
+  );
+}
+
+function InsightCard({
+  title,
+  description,
+}) {
+
+  return (
+
+    <div
+      className="
+        rounded-3xl
+        border border-white/10
+        bg-white/5
+        p-6
+      "
+    >
+
+      <h3
+        className="
+          text-lg
+          font-semibold
+          text-white
+        "
+      >
+        {title}
+      </h3>
+
+      <p
+        className="
+          mt-3
+          leading-7
+          text-white/60
+        "
+      >
+        {description}
+      </p>
+
+    </div>
   );
 }

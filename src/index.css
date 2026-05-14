@@ -16,3 +16,15 @@ body {
   background: #0b1020;
   color: white;
 }
+
+/* GLOBAL DROPDOWN FIX */
+
+select {
+  background-color: #111827 !important;
+  color: white !important;
+}
+
+option {
+  background-color: #111827 !important;
+  color: white !important;
+}

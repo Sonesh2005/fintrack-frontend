@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Lock, Sparkles } from "lucide-react";
-import axios from "axios";
+import api from "../api/axios";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -33,7 +33,7 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
-      await axios.post("http://localhost:8080/api/auth/reset-password", {
+      await api.post("/api/auth/reset-password", {
         token,
         newPassword,
         confirmPassword,
@@ -50,7 +50,6 @@ export default function ResetPassword() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#020b2d] text-white">
-      {/* background glow */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.18),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.12),_transparent_25%)]" />
       <div className="absolute inset-0 backdrop-blur-[2px]" />
 
@@ -61,7 +60,6 @@ export default function ResetPassword() {
           transition={{ duration: 0.45 }}
           className="w-full max-w-md rounded-3xl border border-white/10 bg-white/8 p-8 shadow-2xl backdrop-blur-xl"
         >
-          {/* Logo */}
           <div className="mb-6 flex flex-col items-center text-center">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-lg shadow-cyan-500/20">
               <Sparkles className="h-6 w-6 text-white" />

@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import CountUp from "react-countup";
 import GlassCard from "./GlassCard";
 
 export default function StatCard({
@@ -14,19 +15,46 @@ export default function StatCard({
       transition={{ type: "spring", stiffness: 260, damping: 18 }}
     >
       <GlassCard className="p-5">
-        <p className="text-sm text-white/60">{title}</p>
+
+        <p className="text-sm text-white/60">
+          {title}
+        </p>
 
         {loading ? (
+
           <div className="mt-3 h-10 w-32 animate-pulse rounded-xl bg-white/10" />
+
         ) : (
-          <h3 className="mt-3 text-3xl font-bold tracking-tight">{value}</h3>
+
+          <h3 className="mt-3 text-3xl font-bold tracking-tight">
+
+            {typeof value === "number" ? (
+              <CountUp
+                end={value}
+                duration={2}
+                separator=","
+                prefix="₹"
+              />
+            ) : (
+              value
+            )}
+
+          </h3>
+
         )}
 
         {loading ? (
+
           <div className="mt-3 h-4 w-24 animate-pulse rounded bg-white/10" />
+
         ) : (
-          <p className={`mt-2 text-sm ${subtitleColor}`}>{subtitle}</p>
+
+          <p className={`mt-2 text-sm ${subtitleColor}`}>
+            {subtitle}
+          </p>
+
         )}
+
       </GlassCard>
     </motion.div>
   );

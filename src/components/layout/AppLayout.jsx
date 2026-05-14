@@ -20,7 +20,7 @@ import {
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-
+import AnimatedBackground from "../ui/AnimatedBackground";
 import GlassCard from "../ui/GlassCard";
 import useDashboardData from "../../features/dashboard/useDashboardData";
 import useBudgetData from "../../features/budget/useBudgetData";
@@ -46,6 +46,7 @@ const navItems = [
   { name: "Accounts", icon: Landmark, path: "/accounts" },
   { name: "Recurring", icon: Repeat, path: "/recurring" },
   { name: "Reports", icon: FileText, path: "/reports" },
+  { name: "Settings", icon: ShieldAlert, path: "/settings" },
 ];
 
 function SidebarItem({ item }) {
@@ -57,8 +58,8 @@ function SidebarItem({ item }) {
       className={({ isActive }) =>
         `flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition-all duration-300 ${
           isActive
-            ? "bg-white/12 text-white shadow-lg"
-            : "text-white/70 hover:bg-white/8 hover:text-white"
+  ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-white shadow-lg border border-cyan-400/20 backdrop-blur-xl"
+  : "text-white/70 hover:bg-white/10 hover:text-white hover:translate-x-1"
         }`
       }
     >
@@ -142,8 +143,12 @@ export default function AppLayout() {
   const notificationRef = useRef(null);
 
   const userId = localStorage.getItem("userId");
-  const name = localStorage.getItem("name");
-  const email = localStorage.getItem("email");
+  
+  // Get user data from localStorage
+  const storedUser = localStorage.getItem("user");
+  const parsedUser = storedUser ? JSON.parse(storedUser) : {};
+  const name = parsedUser?.name || "";
+  const email = parsedUser?.email || "";
 
   const initials = name
     ? name
@@ -261,8 +266,11 @@ export default function AppLayout() {
   navigate("/login");
 };
 
-  return (
-    <div className="min-h-screen bg-[#0b1020] text-white">
+ return (
+  
+   
+
+    <div className="relative z-10 min-h-screen bg-transparent text-white">
       <div className="flex min-h-screen">
         <aside className="hidden w-72 shrink-0 border-r border-white/10 bg-white/5 backdrop-blur-2xl lg:flex lg:flex-col">
           <div className="border-b border-white/10 p-6">
@@ -457,6 +465,7 @@ export default function AppLayout() {
           </main>
         </div>
       </div>
-    </div>
-  );
+        </div>
+
+);
 }
